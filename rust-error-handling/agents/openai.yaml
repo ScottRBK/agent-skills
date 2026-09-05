@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust Error Handling"
+  short_description: "Design and review idiomatic Rust errors"
+  default_prompt: "Use $rust-error-handling to improve the error handling in this Rust codebase."
