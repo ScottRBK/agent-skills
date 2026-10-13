@@ -6,3 +6,6 @@
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Local SonarQube skill
+/sonarqube-results/
