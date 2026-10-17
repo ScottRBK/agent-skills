@@ -34,13 +34,15 @@ composition entry point. Checker exit status and dependency paths are the agreed
 ## 2. Select the checker
 
 Reuse a language-appropriate dependency checker rather than writing an import parser.
-For Python, load [the Import Linter example](references/python-import-linter.md).
+For Python, read [the Import Linter reference](references/python-import-linter.md)
+for setup, coverage checks, and a worked Forgetful example.
 For other languages, verify equivalent contracts against current tool documentation.
 
 Locate companion skills in the agent's skill inventory; load their advertised instruction files.
 If Context7, official-docs-fallback, TDD, or CI/CD instructions are unavailable, load
 [the standalone fallback](references/companion-skills.md) for that missing capability.
-Use current tool documentation and audit dependencies before installing development tooling.
+Reuse verified reference details; consult current documentation for version changes, uncovered
+features, or conflicting results. Audit dependencies before installing/upgrading tooling.
 Record handling of submodules, indirect paths, re-exports, and conditional imports. State gaps
 for dynamic imports and runtime operations: dependency checks are not a sandbox.
 

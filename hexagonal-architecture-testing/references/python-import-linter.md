@@ -1,31 +1,52 @@
 # Python: Import Linter contracts
 
-This is a self-contained example of the Forgetful Factory layout:
+## Reuse the verified setup
 
-```text
-src/forgetful_factory/
-├── domain/                 # Models and provider-independent service contracts
-├── application/            # Workflows and ports
-├── adapters/               # GitHub, filesystem, and AgentShell implementations
-├── cli/
-│   ├── main.py             # Arguments and user interaction
-│   └── bootstrap.py        # Composition: constructs and connects adapters
-└── configuration.py        # Public loader: constructs the storage adapter
+Verified on 2026-10-17 with Import Linter 2.15, Grimp 3.17, and Python 3.12.
+Use the repository's existing version and configuration first; this reference records a working
+baseline, not a requirement to downgrade or upgrade a project.
+
+For an unchanged setup, run the checker and retained proofs. Refresh documentation when the
+checker version changes, a needed option is not covered here, or observed results disagree with
+this reference. A new repository still needs its own agreed dependency graph and coverage check.
+Keep any required Context7 lookup focused on the missing detail instead of repeating the whole
+Import Linter investigation.
+
+For a new uv setup, audit the selected version and its resolved dependencies before installation:
+
+```bash
+uv add --dev import-linter==2.15 grimp==3.17
+uv run lint-imports --version
+uv run lint-imports --no-cache
 ```
 
-Build the target repository's contracts from its agreed dependency graph; renaming this example
-is insufficient when responsibilities differ. The modules named below must exist, and fixtures
-need importable Python packages. Existing behavioural tests stay unchanged.
+Declare Grimp directly when the coverage test below imports its API.
+Use the project's lockfile in CI (`uv sync --locked --dev`). Import Linter and its graph dependency,
+Grimp, are development tooling; neither needs service credentials or model calls to scan source.
+Refresh advisory information when installing/upgrading, not on every unchanged test run.
 
-## Configuration
+For a `src/` layout, make the package importable, for example:
 
-Add to `pyproject.toml`:
+```bash
+PYTHONPATH=src uv run lint-imports --no-cache
+```
+
+## Map the repository's actual boundaries
+
+This example uses `forgetful_factory` with `domain`, `application`, `adapters`, and `cli` packages.
+`cli.bootstrap` and a public `configuration` facade construct implementations. Those entry points
+may import adapters; domain/application code must not import them.
+
+Add the agreed contracts to `pyproject.toml`:
 
 ```toml
 [tool.importlinter]
 root_package = "forgetful_factory"
+include_external_packages = true
+exclude_type_checking_imports = false
 
 [[tool.importlinter.contracts]]
+id = "domain"
 name = "Domain stays independent"
 type = "forbidden"
 source_modules = ["forgetful_factory.domain"]
@@ -37,6 +58,7 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
+id = "application"
 name = "Application uses contracts, not adapters"
 type = "forbidden"
 source_modules = ["forgetful_factory.application"]
@@ -47,97 +69,119 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
+id = "adapters"
 name = "Adapters cannot depend on the CLI"
 type = "forbidden"
 source_modules = ["forgetful_factory.adapters"]
 forbidden_modules = ["forgetful_factory.cli"]
 ```
 
-Forbidden contracts check descendants and indirect imports by default. Retain those defaults
-for this example.
+Application may import domain contracts; adapters may implement those contracts. This example
+also permits adapter-to-application imports: tighten it only if the agreed architecture requires
+that. Lists above are not exhaustive allowlists; classify new source areas and entry points.
 
-This configuration intentionally permits:
+Verified option behaviour:
 
-- Application imports of domain services and its own ports.
-- Adapter imports of domain models and application ports/configuration types.
-- Shared utilities used by multiple adapters.
-- `cli/bootstrap.py` constructing adapters and supplying them to workflows.
-- The public `configuration.py` facade constructing the storage adapter.
+- Forbidden contracts cover descendants and indirect imports by default; preserve both defaults.
+- External restrictions need `include_external_packages = true` and top-level names such as
+  `sqlalchemy`, `openai`, or `subprocess`, not `sqlalchemy.orm`.
+- `exclude_type_checking_imports = false` includes imports guarded by `TYPE_CHECKING`.
+- Imports inside functions and re-exports contribute dependency paths; retain proofs for them.
+- `ignore_imports` defaults to an error for unmatched entries. Prefer fixing an unwanted import
+  over adding an exception; explain any agreed exceptions.
+- `--contract application` isolates a contract by its `id`; `--no-cache` ensures fresh graphs.
+- Broken contracts exit nonzero and report the rule and dependency paths. Missing source modules
+  and syntax errors also fail, so exit status alone is insufficient proof of a boundary rejection.
+- Missing forbidden module names are silently skipped. Verify that every configured internal
+  forbidden name exists in the graph; a typo can otherwise disable a restriction. External
+  modules appear only when imported, so their absence alone is not evidence of a typo.
 
-The public facade constructs an adapter, so domain/application cannot import it. These are coarse
-layer rules: adapters are allowed to import application workflows and the public configuration
-facade, not just ports. If those dependencies should be prohibited, agree additional contracts.
-Review rules when adding entry points; the forbidden lists are not exhaustive import allowlists.
+## Check source coverage
 
-## Local and CI commands
+Grimp's package discovery can omit directories without `__init__.py`. In Forgetful, three missing
+package markers hid 19 files, including SQLite repositories. A green checker did not mean every
+source file had been checked. Compare the intended source inventory with the graph:
 
-With Import Linter in the project's development environment, run from the repository root.
-The `src/` package must be importable:
+```python
+from pathlib import Path
+import grimp
 
-```bash
-PYTHONPATH=src lint-imports
+package_dir = Path("src/forgetful_factory")
+graph = grimp.build_graph("forgetful_factory", cache_dir=None)
+expected = set()
+for path in package_dir.rglob("*.py"):
+    parts = list(path.relative_to(package_dir.parent).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    expected.add(".".join(parts))
+assert expected <= graph.modules, sorted(expected - graph.modules)
 ```
 
-Use this command in CI too. Broken contracts return a nonzero exit status and show offending
-import paths.
+Add package markers where appropriate and repeat the coverage check. With the verified version,
+a standalone `main.py` cannot be a root package (`NotATopLevelModule`). Explicitly agree whether
+it stays under manual review or belongs in an importable package. Record exclusions such as tests,
+migrations, and evaluation harnesses; source discovery does not assign architectural roles.
 
-## Example enforcement cases
+## Retain meaningful proofs
 
-Apply the skill's contract-proof loop to these cases. Check the installed version's cache options
-to ensure each changed fixture produces a fresh graph:
+Use the main skill's absent-rule → rejection → restored-pass loop for each contract. Fixtures
+should consume the real configuration, so weakening that configuration can fail the proof.
+Isolate one contract if overlapping rules reject the same violation.
 
-| Contract | Deliberate violation | Expected result |
-| --- | --- | --- |
-| Domain independence | A domain module imports an application module | Failure |
-| Application independence | A workflow imports a concrete adapter | Failure |
-| Adapter independence | An adapter imports a CLI module | Failure |
-| Indirect dependency | A workflow reaches an adapter through a neutral helper | Failure |
-| Allowed dependency | A workflow imports a domain service contract | Success |
-| Composition | Bootstrap constructs an adapter and passes it to a workflow | Success |
-
-For the indirect case, add a helper only in the disposable fixture, outside both `application`
-and `adapters`:
+For indirect imports, put the helper outside both endpoint areas:
 
 ```text
-application/watch_factory.py
-  → boundary_probe/bridge.py
-    → adapters/github/work_tracking.py
+forgetful_factory.application.workflow
+  → forgetful_factory.boundary_probe.bridge
+    → forgetful_factory.adapters.storage
 ```
 
-Make `boundary_probe` an importable sibling package under `forgetful_factory`. Require the reported
-path to include all three modules. A helper inside `application` would itself create a direct
-application-to-adapter violation and would not isolate indirect-path enforcement.
+Require the failure to name the intended contract and all three modules. A helper inside
+`application` would itself create a direct violation and would not prove indirect checking.
+Run each changed fixture in a fresh process with its own package path and `--no-cache`.
+Also retain allowed cases for service-to-contract imports and startup wiring. Put CLI startup
+exceptions in a separate CLI contract if HTTP/MCP handlers must remain unable to reach bootstrap
+through CLI code; an exception shared with the handler rule could hide that indirect path.
 
-For example, this import belongs in composition, not an application workflow:
+Import checks inspect static dependencies. They do not detect runtime attribute access such as
+`service.repository.provider`, dynamic imports, or every file/network operation. Keep those in
+code review and behaviour tests; importing `pathlib`, for example, does not reveal every file write.
 
-```python
-from forgetful_factory.adapters.github.work_tracking import GitHubWorkTracking
+## Worked example: Forgetful
+
+Use this example when applying Import Linter to a layered Python application. These links point
+at merged commit `7e9293e`, so the rules and proofs stay aligned as the project changes.
+Adapt the approach to the target repository's agreed boundaries.
+
+In Forgetful, `app.models.memory_models` must not import `app.services.memory_service`.
+The rules declare that restriction; a proof test inserts the import into a temporary package
+and checks that the intended rule rejects it. The CI command runs those proofs and checks the
+actual repository together:
+
+```bash
+uv run --frozen pytest tests/architecture/ -v
 ```
 
-This workflow import is permitted:
+| What to reuse | Example |
+| --- | --- |
+| Six rules, including a separate CLI rule with two startup exceptions | [Configuration][rules] |
+| Proof fixtures, source coverage and misspelled-target checks | [Tests][proofs] |
+| Lockfile installation and a required architecture-check step | [CI workflow][workflow] |
+| Behaviour coverage before refactoring, checker limits and results | [Validation][validation] |
 
-```python
-from forgetful_factory.domain.services.work_tracking import WorkTrackingService
-```
+[rules]: https://github.com/ScottRBK/forgetful/blob/7e9293e/pyproject.toml#L84
+[proofs]: https://github.com/ScottRBK/forgetful/blob/7e9293e/tests/architecture/test_contracts.py
+[workflow]: https://github.com/ScottRBK/forgetful/blob/7e9293e/.github/workflows/ci.yml
+[validation]: https://github.com/ScottRBK/forgetful/blob/7e9293e/docs/dev/architecture-tests.md
 
-## Optional integration restrictions
+## Sources
 
-The three contracts above restrict internal dependencies. They do not prohibit all external
-integration imports or file operations.
+Context7 library: `/seddonym/import-linter`.
 
-If agreed, add a separate forbidden contract for domain/application imports of integrations such
-as `agent_shell`, `subprocess`, and `tomllib`. External checks require the documented top-level
-`include_external_packages = true` option. Verify the selected version's treatment of standard
-library modules and direct versus indirect external paths before claiming coverage.
+- [Configuration](https://import-linter.readthedocs.io/en/stable/get_started/configure/)
+- [Forbidden contracts](https://import-linter.readthedocs.io/en/stable/contract_types/forbidden/)
+- [CLI usage](https://import-linter.readthedocs.io/en/stable/get_started/run/)
+- [Grimp usage](https://grimp.readthedocs.io/en/latest/usage.html)
 
-## Documentation
-
-Verified against Context7's `/seddonym/import-linter` documentation:
-
-- [Configuration](https://import-linter.readthedocs.io/en/stable/get_started/configure.html)
-- [Forbidden contracts][forbidden]
-
-[forbidden]: https://import-linter.readthedocs.io/en/stable/contract_types/forbidden.html
-
-This configuration example is not evidence that a target repository has installed or validated
-Import Linter.
+The reference is a verified starting point; the target repository's passing proofs establish its
+actual enforcement and source coverage.
