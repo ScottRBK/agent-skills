@@ -1,0 +1,5 @@
+.env
+*.mp3
+*.wav
+envault.toml
+
