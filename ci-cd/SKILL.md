@@ -20,14 +20,20 @@ Complete when each proposed job has a known command, runtime, trigger, and purpo
 
 ## 2. Apply the user's preferences
 
+
 - For GitHub Actions, use `ubuntu-latest` unless the project needs another runner.
-- Run CI on every push and on pull requests. Retain branch/tag/path coverage unless the user agrees
-  to narrower filters. An open PR's branch push can produce both runs; explain that trade-off.
+- If it is a private repo then a private github actions runner is usually preferred over a gh one 
+that will incurr cost.
+- Run CI on every push and on pull requests. 
+- Once CI is green, if there is an e2e environment, deploy to it 
+- If there is an e2e environment, after deployment, run e2e tests
+- Production/Package releases will occur on the back of proper tag push and not automatically following
+succesul e2e
+- Prefer the current major-version tags for GitHub's official actions, rather than commit hashes.
 - Cancel outdated test runs using a concurrency group containing both `github.workflow` and
   `github.ref`, with `cancel-in-progress: true`. Different refs remain independent.
 - Use a matrix for genuine variations such as supported Python versions or separate checks.
   Set `fail-fast: false` so one failure does not cancel the remaining matrix jobs.
-- Prefer the current major-version tags for GitHub's official actions, rather than commit hashes.
   Verify the latest release and what its major tag resolves to; use that tag, not a guessed
   `@latest`. This receives compatible updates, not automatic upgrades to the next major version.
 - Audit before adding or deliberately upgrading dependencies, including actions. Record the

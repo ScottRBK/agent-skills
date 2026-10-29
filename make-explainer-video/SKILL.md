@@ -42,7 +42,10 @@ Done when both vault aliases exist and a project folder is chosen. If access nee
 
 ## 2. Write the script
 
-Ask what the video should show (audience, key points, length). Write `script.md` in the project:
+Ask what the video should show (audience, key points, length). Unless the user specifies an
+expert audience, assume no prior topic knowledge. Start with a familiar example, explain one
+new idea at a time, and define necessary terms before using them. Spelling out an acronym does
+not explain its meaning. Write `script.md` in the project:
 
 ```markdown
 ## intro
@@ -52,15 +55,28 @@ Hello! I built a skill that writes our release notes.
 It reads the work items, groups them by theme, and drafts the lot in about a minute.
 ```
 
-- Each `## scene-id` (lowercase, digits, dashes) is one scene and one audio file.
-- Aim for 1-3 short sentences per scene, spoken in about 5-15 seconds.
+- Each `## scene-id` (lowercase, digits, dashes) is one scene and one audio file. Keep only spoken
+  text under it; put visual directions and scene-transition notes in a separate project file.
+- Aim for 1-3 short sentences per scene, spoken in about 5-15 seconds. Split a crowded explanation
+  into more scenes rather than rushing the voice.
 - Write the way it is said: spell out acronyms and numbers the voice might misread ("A D O",
   "twenty twenty-six").
-- Ollie takes no style tags; the emotion comes from the wording, so write "Great news!" not
-  "The release has been completed."
+- Ollie takes no style tags; pace and tone come from natural wording and punctuation.
+- Use occasional dry British humour when it fits: understatement, everyday observations or
+  gentle self-deprecation. Keep it brief and warm. Avoid forced dialect, jokes at others' expense
+  and invented personal anecdotes. Skip a joke if it distracts from the explanation.
+- Connect scenes with a short spoken bridge when the link between ideas is not already clear.
 
-Done when the user has approved the script. Do not generate audio before that: every run costs
-credits.
+Before presenting any generated or revised script, read and apply the `humanizer` skill at
+`../humanizer/SKILL.md` (relative to this skill directory). Run its full process in file mode on
+`script.md`, preserving scene IDs. If unavailable, stop and report the missing skill. Recheck
+facts, examples and necessary qualifications after editing; natural phrasing must not change
+what the script claims. Check that each scene needs only knowledge already explained or agreed
+with the user. Fix missing steps before requesting approval.
+
+Done when the current script revision has passed the humanizer and comprehension checks and
+the user has approved it. Repeat these checks and approval after wording changes. Do not generate
+audio before that: every run costs credits.
 
 ## 3. Generate the voiceover
 
@@ -82,7 +98,14 @@ Load the Remotion skills' `remotion-markup/voiceover.md` and follow it from "Dyn
 duration with calculateMetadata" onward; skip its ElevenLabs section, the mp3 files already exist.
 Also load `audio.md` and `multi-scene-video.md` from the same folder.
 
-- Scene length comes from each mp3's duration, so visuals follow the voice.
+- Scene length comes from each mp3's duration, so visuals follow the voice. Allow reading pauses
+  and transition time without cutting off speech.
+- Give each visual beat one teaching point and one clear focus. Reveal objects and short labels
+  as the voice introduces them; remove or dim earlier material. Use only the text and numbers
+  needed now. Split crowded views instead of shrinking text or adding competing panels.
+- Plan transitions between whole scenes as well as within them. Carry a shared object into the
+  next view where useful; otherwise use a gentle fade or slide. Keep the style consistent and
+  clear outgoing labels before new labels become readable. Movement should help connect ideas.
 - Music: ask the user for a track (put it in `public/music/`); play it at volume about 0.1-0.15
   under the voice. Do not invent or download tracks without the user choosing one.
 - Sound effects: `sfx.md`. Word-by-word captions are optional: `remotion-captions`.
@@ -91,8 +114,13 @@ Check visuals sparingly, or the conversation grows until the model API times out
 one scene at a time, render at most 3 stills per scene (start, middle, end), and delete the stills
 afterwards. Never load dozens of frames. Stop any Studio server you started.
 
-Done when the Studio preview plays with voice and music in sync. Open the preview
-(`remotion-studio` skill); only render when the user explicitly asks.
+Open the preview (`remotion-studio` skill). Play every scene transition with narration; stills
+cannot show whether a transition works. Check continuity, reading time and audio joins. At a
+phone-sized viewing area, check that each beat has one clear focus and legible labels. If the
+viewer must read several areas while hearing a different explanation, simplify or split the beat.
+
+Done when those checks pass and the preview plays with voice and any chosen music in sync.
+Only render when the user explicitly asks.
 
 ## Reference
 
